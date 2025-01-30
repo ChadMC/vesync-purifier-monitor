@@ -1,0 +1,414 @@
+:root {
+  --bg-primary: #030711;
+  --bg-secondary: #0a1527;
+  --text-primary: #eef2ff;
+  --text-secondary: #94a3b8;
+  --accent-blue: #0ea5e9;
+  --accent-purple: #8b5cf6;
+  --accent-emerald: #10b981;
+  --accent-ruby: #e11d48;
+  --card-bg: rgba(10, 21, 39, 0.7);
+  --card-border: rgba(14, 165, 233, 0.15);
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f43f5e;
+  --off: #475569;
+}
+
+body {
+  margin: 0;
+  background: 
+    radial-gradient(circle at 0% 0%, rgba(16, 185, 129, 0.05), transparent 50%),
+    radial-gradient(circle at 100% 0%, rgba(14, 165, 233, 0.05), transparent 50%),
+    radial-gradient(circle at 50% 100%, rgba(139, 92, 246, 0.05), transparent 50%),
+    linear-gradient(to bottom right, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
+  min-height: 100vh;
+}
+
+.dashboard {
+  padding: 1rem;
+  min-height: 100vh;
+  background: 
+    radial-gradient(circle at 0% 0%, rgba(14, 165, 233, 0.05), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(139, 92, 246, 0.05), transparent 70%);
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.title {
+  color: var(--accent-blue);
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  margin: 0.5rem 0;
+  text-shadow: 0 0 10px rgba(76, 158, 255, 0.3);
+  letter-spacing: -0.5px;
+  text-align: center;
+}
+
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  perspective: 1000px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.device-card {
+  position: relative;
+  background: linear-gradient(165deg, 
+    rgba(10, 21, 39, 0.8) 0%,
+    rgba(3, 7, 17, 0.95) 100%
+  );
+  border-radius: 24px;
+  padding: 1rem;
+  backdrop-filter: blur(40px);
+  border: 1px solid var(--card-border);
+  box-shadow: 
+    0 20px 50px -15px rgba(0, 0, 0, 0.7),
+    0 0 30px rgba(14, 165, 233, 0.1),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.1);
+  transform-style: preserve-3d;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: fadeIn 0.5s ease-out forwards;
+  animation-delay: calc(var(--index) * 0.1s);
+  opacity: 0;
+}
+
+.device-card:hover {
+  transform: translateY(-10px) rotateX(3deg) rotateY(2deg);
+  background: linear-gradient(165deg, 
+    rgba(10, 21, 39, 0.9) 0%,
+    rgba(3, 7, 17, 0.98) 100%
+  );
+  border-image: linear-gradient(45deg, var(--accent-blue), var(--accent-purple)) 1;
+  box-shadow: 
+    0 30px 60px -20px rgba(14, 165, 233, 0.3),
+    0 0 40px rgba(14, 165, 233, 0.2),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.device-card.updating::before {
+  content: '';
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(
+    circle at center,
+    var(--accent-blue) 0%,
+    transparent 70%
+  );
+  opacity: 0;
+  z-index: -1;
+  animation: updatePulse 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+.device-name {
+  color: var(--text-primary);
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0 0 1.5rem 0;
+  position: relative;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+  text-shadow: 0 0 20px rgba(14, 165, 233, 0.3);
+}
+
+/* Remove this entire block since we already have a nice gradient text effect */
+.device-name::after {
+  display: none; /* or just remove this entire block */
+}
+
+.status-item {
+  color: var(--text-secondary);
+  margin: 1rem 0;
+  padding: 0.7rem 0;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.status-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.status-value {
+  color: var(--text-primary);
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.status-item:hover .status-value {
+  color: var(--accent-blue);
+}
+
+.status-item:hover {
+  transform: translateX(8px);
+}
+
+.status-badge {
+  padding: 0.3rem 0.8rem;
+  border-radius: 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.status-badge.on {
+  background: rgba(76, 175, 80, 0.2);
+  color: var(--success);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  animation: pulse 2s infinite ease-in-out;
+  box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
+}
+
+.status-badge.off {
+  background: rgba(100, 116, 139, 0.2);
+  color: var(--off);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.fan-speed {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  height: 20px;
+}
+
+.speed-bar {
+  width: 6px;
+  background: var(--accent-blue);
+  border-radius: 3px;
+  opacity: 0.3;
+  transition: all 0.3s;
+}
+
+.speed-bar.active {
+  opacity: 1;
+}
+
+.air-quality-indicator {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.8rem;
+  border-radius: 1rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+/* Remove these classes as they're no longer needed for PM2.5
+.air-quality-1 { ... }
+.air-quality-2 { ... }
+.air-quality-3, .air-quality-4 { ... }
+*/
+
+.filter-life {
+  width: 50px;
+  height: 50px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-life-circle {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+  background: conic-gradient(
+    var(--accent-blue) calc(var(--percent) * 1%),
+    rgba(59, 130, 246, 0.1) calc(var(--percent) * 1%)
+  );
+}
+
+.filter-life-text {
+  position: relative;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #2c5282; /* darker blue that's more readable */
+}
+
+.mode-badge {
+  text-transform: capitalize;
+  padding: 0.3rem 0.8rem;
+  border-radius: 1rem;
+  background: rgba(76, 158, 255, 0.1);
+  border: 1px solid rgba(76, 158, 255, 0.2);
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(30px) scale(0.95);
+    backdrop-filter: blur(0px);
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) scale(1);
+    backdrop-filter: blur(40px);
+  }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+@keyframes updatePulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1.1);
+    opacity: 0;
+  }
+}
+
+.particles-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pm25-display {
+  margin: -0.5rem -1rem 1rem -1rem;
+  padding: 1rem;
+  border-radius: 24px 24px 0 0;
+  background: linear-gradient(165deg, 
+    rgba(10, 21, 39, 0.9) 0%,
+    rgba(3, 7, 17, 0.98) 100%
+  );
+  border-bottom: 1px solid var(--card-border);
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.pm25-value {
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.pm25-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 0.25rem;
+  }
+
+  .title {
+    font-size: 1rem;
+    margin: 0.25rem 0;
+  }
+
+  .devices-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.25rem;
+  }
+
+  .device-card {
+    padding: 0.4rem;
+    border-radius: 8px;
+    font-size: 0.65rem;
+    backdrop-filter: blur(20px);
+  }
+
+  .device-card .device-name {
+    font-size: 0.75rem;
+    margin: 0 0 0.25rem 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .status-item {
+    margin: 0.2rem 0;
+    padding: 0.2rem 0;
+    gap: 0.25rem;
+    border-bottom-width: 0.5px;
+  }
+
+  .status-badge, .mode-badge {
+    padding: 0.1rem 0.3rem;
+    font-size: 0.65rem;
+    white-space: nowrap;
+  }
+
+  .air-quality-indicator {
+    padding: 0.1rem 0.3rem;
+    font-size: 0.65rem;
+    white-space: nowrap;
+  }
+
+  .fan-speed {
+    height: 12px;
+    gap: 2px;
+  }
+
+  .speed-bar {
+    width: 3px;
+  }
+
+  .filter-life {
+    width: 1.2rem;
+    height: 1.2rem;
+    min-width: 1.2rem;
+  }
+
+  .filter-life-text {
+    font-size: 0.6rem;
+  }
+
+  /* Remove hover effects on mobile */
+  .device-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .status-item:hover {
+    transform: none;
+  }
+
+  .pm25-display {
+    margin: -0.4rem -0.4rem 0.4rem -0.4rem;
+    padding: 0.4rem;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .pm25-value {
+    font-size: 1.2rem;
+    margin-bottom: 0.1rem;
+  }
+
+  .pm25-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.5px;
+  }
+}
