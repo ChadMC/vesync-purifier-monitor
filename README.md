@@ -71,6 +71,32 @@ A web-based interface for managing VeSync devices using Python backend and React
 
 Once both servers are running, open your web browser and navigate to http://localhost:4000 to access the web interface.
 
+## Features
+
+### Dashboard Overview
+- Real-time device status updates via WebSocket connection
+- Centralized monitoring of all connected VeSync air purifiers
+- Visually distinct device cards with clear status information
+- Dynamic particle background that reflects current air quality
+- Responsive design for desktop, tablet, and mobile devices
+
+### Device Information
+- Device name and current operational status
+- Operating mode display (Auto, Sleep, Manual)
+- Fan speed level indicator (1-4)
+- Filter life percentage with circular progress indicator
+- Power state (On/Off) with status badges
+
+### Air Quality Monitoring
+- Real-time PM2.5 value display
+- Qualitative air quality indicators (Excellent, Good, Fair, Poor)
+- Color-coded status indicators for quick assessment
+- Visual air quality representations with corresponding colors
+  - Blue: Excellent
+  - Green: Good
+  - Orange: Fair
+  - Red: Poor
+
 ## Development
 
 The backend uses Flask-SocketIO for real-time device updates, and the frontend uses React with Socket.IO client for live updates of device states.
