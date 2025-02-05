@@ -427,6 +427,7 @@ body {
     border-radius: 8px;
     font-size: 0.65rem;
     backdrop-filter: blur(20px);
+    margin: 0 1rem; /* added left and right margin */
   }
 
   .device-card .device-name {
