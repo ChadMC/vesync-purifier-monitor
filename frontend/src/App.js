@@ -49,6 +49,7 @@ function getAirQualityColor(level) {
 function App() {
   const [devices, setDevices] = useState([]);
   const [updatingDevices, setUpdatingDevices] = useState(new Set());
+  const [isLoaded, setIsLoaded] = useState(false);
   const animatingDevicesRef = useRef(new Set());
   const updateTimeoutsRef = useRef([]);
   // Add new ref to store current PM2.5 value
@@ -107,11 +108,16 @@ function App() {
     
     previousDevicesRef.current = newDevices;
     setDevices(newDevices);
-  }, []); // Can keep empty deps since we use refs
+    if (!isLoaded) {
+      setTimeout(() => setIsLoaded(true), 500); // slight delay for splash fade
+    }
+  }, [isLoaded]); // Can keep empty deps since we use refs
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
+    // Detect if mobile
+    const isMobile = window.innerWidth < 768;
     let animationFrameId;
     const perspective = 800; // new constant for 3D perspective
 
@@ -143,9 +149,12 @@ function App() {
     // Modified createParticle to clamp scale for high PM2.5 values
     const createParticle = () => {
       const effectivePM25 = currentPM25Ref.current + 10;
-      let scale = Math.pow(effectivePM25 / 35, 1.5) * 1.2;
-      // Further clamp scale to 1.8 to reduce particle size at high PM2.5 values
+      let baseScale = Math.pow(effectivePM25 / 35, 1.5) * 1.2;
+      // Increase scale for low PM2.5: if effectivePM25 is less than 15, apply a multiplier.
+      const lowMultiplier = effectivePM25 < 15 ? (15 / effectivePM25) : 1;
+      let scale = baseScale * lowMultiplier;
       scale = Math.min(scale, 1.8);
+      const speedMultiplier = isMobile ? 2 : 1;  // New multiplier for mobile
       // Generate particle from a random edge
       const edge = Math.floor(Math.random() * 4);
       let x, y;
@@ -170,9 +179,9 @@ function App() {
         z: Math.random() * 600,
         // Increase the initial size coefficient for larger particles
         initialSize: 0.6 + (Math.random() * 2.5 * scale),
-        initialSpeedY: (-0.1 - Math.random() * 0.3) * (1 + scale),
-        initialSpeedX: (0.05 + Math.random() * 0.2) * (1 + scale * 0.5),
-        initialSpeedZ: (Math.random() * 0.2 - 0.1) * (1 + scale),
+        initialSpeedY: ((-0.1 - Math.random() * 0.3) * (1 + scale)) * speedMultiplier, // updated
+        initialSpeedX: ((0.05 + Math.random() * 0.2) * (1 + scale * 0.5)) * speedMultiplier, // updated
+        initialSpeedZ: ((Math.random() * 0.2 - 0.1) * (1 + scale)) * speedMultiplier, // updated
         initialOpacity: (0.1 + Math.random() * 0.3) * (1 + scale * 0.7),
         life: 1.0,
         lifeDecrease: 0.0001 + Math.random() * 0.0001,
@@ -189,7 +198,7 @@ function App() {
       const baseScale = (currentPM25Ref.current + 15) / 15;
       const scale = Math.pow(baseScale, 0.4) * (1 + Math.log10(baseScale + 0.5) * 3);
       
-      const baseCount = 500;  // Reduced base count
+      const baseCount = 1000;  // Reduced base count
       const maxCount = 20000;  // Increased from 800
       
       // Multiply the target count factor to spawn many more particles
@@ -203,7 +212,7 @@ function App() {
       const centerY = canvas.height / 2;
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
-      const fadeCircle = 300; // invisible circle radius to trigger fade
+      const fadeCircle = 150; // invisible circle radius to trigger fade
       const fadeDuration = 1000; // fade out duration in ms
       const attractionFactor = 0.00375;
 
@@ -317,7 +326,7 @@ function App() {
       // for testing purposes, let's modify and set each device's pm2.5 value to a random 1-100 value
       // we will modify the data object directly
       // data.forEach(device => {
-      //   device.air_quality_value = Math.floor(Math.random() * 100) + 1;
+      //   device.air_quality_value = Math.floor(Math.random() * 75) + 1;
       // });
 
       handleDeviceUpdate(data);
@@ -337,112 +346,119 @@ function App() {
     };
   }, []);
 
+  // Compute cleanliness class based on max PM2.5 value
+  const cleanlinessClass = React.useMemo(() => {
+    const maxPM25 = devices.reduce((max, d) => Math.max(max, d.air_quality_value || 0), 0);
+    if (maxPM25 > 50) return 'dusty';
+    if (maxPM25 > 20) return 'almost-clean';
+    return 'clean';
+  }, [devices]);
+
+  // Compute grid style and whether to use expanded view on mobile
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const isExpanded = isMobile && devices.length <= 3;
+  const gridStyle = isExpanded ? { gridTemplateColumns: '1fr' } : {};
+
   return (
-    <div className="dashboard">
-      <canvas 
-        ref={canvasRef} 
-        className="particles-canvas"
-      />
-      <h1 className="title">Levoit Air Purifier Status</h1>
-      {devices.length === 0 ? (
-        <div className="device-card" style={{"--index": 0}}>
-          <div style={{
-            textAlign: 'center',
-            padding: '2rem',
-            color: 'var(--text-secondary)',
-            fontSize: '1.1rem'
-          }}>
-            <div style={{
-              fontSize: '2rem',
-              marginBottom: '1rem',
-              background: 'linear-gradient(90deg, var(--accent-blue), var(--accent-purple))',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}>
-              No devices found
-            </div>
-            Searching for connected air purifiers...
-          </div>
-        </div>
-      ) : (
-        <div className="devices-grid">
-          {devices.map((dev, idx) => (
-            <div 
-              key={idx} 
-              className={`device-card ${updatingDevices.has(idx) ? 'updating' : ''}`}
-              style={{"--index": idx}}
-            >
-              <div 
-                className="pm25-display"
-                style={{
-                  background: `linear-gradient(165deg, 
-                    ${getPM25Color(dev.air_quality_value || 0)}15,
-                    ${getPM25Color(dev.air_quality_value || 0)}05
-                  )`,
-                  borderBottom: `1px solid ${getPM25Color(dev.air_quality_value || 0)}30`
-                }}
-              >
-                <div 
-                  className="pm25-value"
-                  style={{ color: getPM25Color(dev.air_quality_value || 0) }}
-                >
-                  {dev.air_quality_value || 'N/A'}
-                </div>
-                <div className="pm25-label">PM2.5</div>
-              </div>
-              <h3 className="device-name">{dev.name}</h3>
-              <div className="status-item">
-                <span>Status</span>
-                <span className={`status-badge ${dev.is_on ? 'on' : 'off'}`}>
-                  {dev.is_on ? 'On' : 'Off'}
-                </span>
-              </div>
-              <div className="status-item">
-                <span>Mode</span>
-                <span className="mode-badge">{dev.mode || 'N/A'}</span>
-              </div>
-              <div className="status-item">
-                <span>Fan Speed</span>
-                <div className="fan-speed">
-                  {[1, 2, 3, 4].map(level => (
-                    <div
-                      key={level}
-                      className={`speed-bar ${level <= dev.fan_speed ? 'active' : ''}`}
-                      style={{ height: `${level * 5}px` }}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="status-item">
-                <span>Air Quality</span>
-                <span 
-                  className="air-quality-indicator"
-                  style={{
-                    color: getAirQualityColor(dev.air_quality),
-                    background: `${getAirQualityColor(dev.air_quality)}15`,
-                    borderColor: `${getAirQualityColor(dev.air_quality)}30`
-                  }}
-                >
-                  {['Excellent', 'Good', 'Fair', 'Poor'][dev.air_quality - 1] || 'N/A'}
-                </span>
-              </div>
-              <div className="status-item">
-                <span>Filter Life</span>
-                <div className="filter-life">
-                  <div 
-                    className="filter-life-circle" 
-                    style={{"--percent": dev.filter_life || 0}}
-                  />
-                  <span className="filter-life-text">
-                    {dev.filter_life ? `${dev.filter_life}%` : 'N/A'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
+    <>
+      {!isLoaded && (
+        <div className="splash">
+          <div className="spinner"></div>
         </div>
       )}
-    </div>
+      <div className={`dashboard ${cleanlinessClass}`}>
+        <canvas 
+          ref={canvasRef} 
+          className="particles-canvas"
+        />
+        <h1 className="title">Levoit Air Purifier Status</h1>
+        {devices.length === 0 ? (
+          <div className="loading">
+            <div className="spinner"></div>
+            <p style={{ textAlign: 'center', marginTop: '1rem', color: '#eef2ff' }}>
+              No devices found. Searching...
+            </p>
+          </div>
+        ) : (
+          <div className="devices-grid" style={gridStyle}>
+            {devices.map((dev, idx) => (
+              <div 
+                key={idx} 
+                className={`device-card ${updatingDevices.has(idx) ? 'updating' : ''} ${isExpanded ? 'expanded' : ''}`}
+                style={{"--index": idx}}
+              >
+                <div 
+                  className="pm25-display"
+                  style={{
+                    background: `linear-gradient(165deg, 
+                      ${getPM25Color(dev.air_quality_value || 0)}15,
+                      ${getPM25Color(dev.air_quality_value || 0)}05
+                    )`,
+                    borderBottom: `1px solid ${getPM25Color(dev.air_quality_value || 0)}30`
+                  }}
+                >
+                  <div 
+                    className="pm25-value"
+                    style={{ color: getPM25Color(dev.air_quality_value || 0) }}
+                  >
+                    {dev.air_quality_value || 'N/A'}
+                  </div>
+                  <div className="pm25-label">PM2.5</div>
+                </div>
+                <h3 className="device-name">{dev.name}</h3>
+                <div className="status-item">
+                  <span>Status</span>
+                  <span className={`status-badge ${dev.is_on ? 'on' : 'off'}`}>
+                    {dev.is_on ? 'On' : 'Off'}
+                  </span>
+                </div>
+                <div className="status-item">
+                  <span>Mode</span>
+                  <span className="mode-badge">{dev.mode || 'N/A'}</span>
+                </div>
+                <div className="status-item">
+                  <span>Fan Speed</span>
+                  <div className="fan-speed">
+                    {[1, 2, 3, 4].map(level => (
+                      <div
+                        key={level}
+                        className={`speed-bar ${level <= dev.fan_speed ? 'active' : ''}`}
+                        style={{ height: `${level * 5}px` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="status-item">
+                  <span>Air Quality</span>
+                  <span 
+                    className="air-quality-indicator"
+                    style={{
+                      color: getAirQualityColor(dev.air_quality),
+                      background: `${getAirQualityColor(dev.air_quality)}15`,
+                      borderColor: `${getAirQualityColor(dev.air_quality)}30`
+                    }}
+                  >
+                    {['Excellent', 'Good', 'Fair', 'Poor'][dev.air_quality - 1] || 'N/A'}
+                  </span>
+                </div>
+                <div className="status-item">
+                  <span>Filter Life</span>
+                  <div className="filter-life">
+                    <div 
+                      className="filter-life-circle" 
+                      style={{"--percent": dev.filter_life || 0}}
+                    />
+                    <span className="filter-life-text">
+                      {dev.filter_life ? `${dev.filter_life}%` : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
