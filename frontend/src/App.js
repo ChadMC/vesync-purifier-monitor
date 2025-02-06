@@ -188,7 +188,7 @@ function App() {
       // Use target PM2.5 value (which is updated from socket) to adjust spawn rate radically.
       // For example, for pm25=1 spawnRate=5, for pm25=100 spawnRate ~500.
       const pmVal = targetPM25Ref.current;
-      const minRate = 5;
+      const minRate = 10;
       const maxRate = 500;
       // Use a quadratic scaling
       const newSpawnRate = Math.min(maxRate, minRate * Math.pow(pmVal, 2));
@@ -312,7 +312,7 @@ function App() {
       // for testing purposes, let's modify and set each device's pm2.5 value to a random 1-100 value
       // we will modify the data object directly
       // data.forEach(device => {
-      //   device.air_quality_value = Math.floor(Math.random() * 40) + 1;
+      //   device.air_quality_value = Math.floor(Math.random() * 30) + 1;
       // });
 
       handleDeviceUpdate(data);
