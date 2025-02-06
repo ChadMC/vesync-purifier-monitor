@@ -61,7 +61,7 @@ body {
 }
 
 .title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Montserrat', sans-serif; /* updated to a modern elegant font */
   font-size: clamp(2.5rem, 6vw, 4rem);
   margin: 1rem 0;
   text-transform: uppercase;

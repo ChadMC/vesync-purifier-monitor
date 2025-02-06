@@ -371,7 +371,7 @@ function App() {
           ref={canvasRef} 
           className="particles-canvas"
         />
-        <h1 className="title">Levoit Air Purifier Status</h1>
+        <h1 className="title">Levoit Air Purifier Insights</h1>
         {devices.length === 0 ? (
           <div className="loading">
             <div className="spinner"></div>
