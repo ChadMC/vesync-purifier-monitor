@@ -146,85 +146,78 @@ function App() {
 
     // Removed initial burst functions: createInitialParticle and createInitialBurst
 
-    // Modified createParticle to clamp scale for high PM2.5 values
+    // Replace createParticle function with a realistic physics version
     const createParticle = () => {
-      const effectivePM25 = currentPM25Ref.current + 10;
-      let baseScale = Math.pow(effectivePM25 / 35, 1.5) * 1.2;
-      // Increase scale for low PM2.5: if effectivePM25 is less than 15, apply a multiplier.
-      const lowMultiplier = effectivePM25 < 15 ? (15 / effectivePM25) : 1;
-      let scale = baseScale * lowMultiplier;
-      scale = Math.min(scale, 1.8);
-      const speedMultiplier = isMobile ? 2 : 1;  // New multiplier for mobile
-      // Generate particle from a random edge
-      const edge = Math.floor(Math.random() * 4);
-      let x, y;
       const canvasWidth = canvasRef.current.width;
       const canvasHeight = canvasRef.current.height;
-      if (edge === 0) {        // top edge
-        x = Math.random() * canvasWidth;
-        y = -10;
-      } else if (edge === 1) { // right edge
-        x = canvasWidth + 10;
-        y = Math.random() * canvasHeight;
-      } else if (edge === 2) { // bottom edge
-        x = Math.random() * canvasWidth;
-        y = canvasHeight + 10;
-      } else {                 // left edge
-        x = -10;
-        y = Math.random() * canvasHeight;
+      // Spawn particle from one of four edges uniformly
+      const edge = Math.floor(Math.random() * 4);
+      let x, y;
+      switch (edge) {
+        case 0: // top
+          x = Math.random() * canvasWidth;
+          y = -10;
+          break;
+        case 1: // right
+          x = canvasWidth + 10;
+          y = Math.random() * canvasHeight;
+          break;
+        case 2: // bottom
+          x = Math.random() * canvasWidth;
+          y = canvasHeight + 10;
+          break;
+        case 3: // left
+          x = -10;
+          y = Math.random() * canvasHeight;
+          break;
       }
       return {
         x,
         y,
-        z: Math.random() * 600,
-        // Increase the initial size coefficient for larger particles
-        initialSize: 0.6 + (Math.random() * 2.5 * scale),
-        initialSpeedY: ((-0.1 - Math.random() * 0.3) * (1 + scale)) * speedMultiplier, // updated
-        initialSpeedX: ((0.05 + Math.random() * 0.2) * (1 + scale * 0.5)) * speedMultiplier, // updated
-        initialSpeedZ: ((Math.random() * 0.2 - 0.1) * (1 + scale)) * speedMultiplier, // updated
-        initialOpacity: (0.1 + Math.random() * 0.3) * (1 + scale * 0.7),
+        vx: (Math.random() - 0.5) * 1.0,
+        vy: (Math.random() - 0.5) * 1.0,
+        opacity: 0.5 + Math.random() * 0.5, // base opacity between 0.5 and 1
         life: 1.0,
-        lifeDecrease: 0.0001 + Math.random() * 0.0001,
-        angle: Math.random() * Math.PI * 2,
-        angularSpeed: 0.01 + Math.random() * 0.02,
-        swirlAmplitude: 5 + Math.random() * 5,
-        fadeStart: null // new property to track when fading starts
+        lifeDecrease: 0.001 + Math.random() * 0.002,
+        size: 2 + Math.random() * 3 // particle size between 2 and 5
       };
     };
 
-    // Update particle system parameters
+    // Replace updateParticleSystem function with the following:
     const updateParticleSystem = () => {
-      // Increase effective base by adding 10 as offset
-      const baseScale = (currentPM25Ref.current + 15) / 15;
-      const scale = Math.pow(baseScale, 0.4) * (1 + Math.log10(baseScale + 0.5) * 3);
-      
-      const baseCount = 1000;  // Reduced base count
-      const maxCount = 20000;  // Increased from 800
-      
-      // Multiply the target count factor to spawn many more particles
-      particleSystemRef.current.targetCount = 5 * Math.floor(baseCount + (maxCount - baseCount) * scale);
-      // Increase spawn rate aggressively at higher values
-      particleSystemRef.current.spawnRate = 2 + Math.floor(scale * 30); // More aggressive spawn rate scaling
+      // Use target PM2.5 value (which is updated from socket) to adjust spawn rate radically.
+      // For example, for pm25=1 spawnRate=5, for pm25=100 spawnRate ~500.
+      const pmVal = targetPM25Ref.current;
+      const minRate = 5;
+      const maxRate = 500;
+      // Use a quadratic scaling
+      const newSpawnRate = Math.min(maxRate, minRate * Math.pow(pmVal, 2));
+      particleSystemRef.current.spawnRate = newSpawnRate;
+      // Adjust target count as well, e.g. factor of 6.
+      particleSystemRef.current.targetCount = newSpawnRate * 6;
     };
 
+    // In the animate function, replace the physics with a single gravitational acceleration
     const animate = (timestamp) => {
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
-      const fadeCircle = 150; // invisible circle radius to trigger fade
-      const fadeDuration = 1000; // fade out duration in ms
-      const attractionFactor = 0.00375;
 
-      // Smoothly update currentPM25 toward targetPM25
+      // Updated gravitational constant: toned down by 25%
+      const gravityConst = 0.0375;
+      const friction = 0.99;
+      const nearRadius = 40; // new threshold to disable extra acceleration near center
+
+      // Smoothly update currentPM25 toward targetPM25 (if still needed for spawning rate)
       currentPM25Ref.current += (targetPM25Ref.current - currentPM25Ref.current) * 0.02;
       
-      // Update particle system parameters each frame
+      // Update particle system parameters based on current PM2.5 value
       updateParticleSystem();
-
+      
       ctx.clearRect(0, 0, canvasWidth, canvasHeight);
       
-      // Efficient particle spawning using a while loop
+      // Particle spawning using the dynamically computed spawnRate
       const spawnInterval = 1000 / particleSystemRef.current.spawnRate;
       while (
         timestamp - particleSystemRef.current.lastSpawn > spawnInterval &&
@@ -234,58 +227,45 @@ function App() {
         particleSystemRef.current.lastSpawn += spawnInterval;
       }
       
-      // Efficient update loop: accumulate active particles in a new array
-      const newParticles = [];
-      for (let i = 0; i < particlesRef.current.length; i++) {
+      // Replace filtering with a reverse for-loop to update particles in-place
+      for (let i = particlesRef.current.length - 1; i >= 0; i--) {
         const particle = particlesRef.current[i];
-        // Update position and apply attraction
-        particle.y += particle.initialSpeedY;
-        particle.x += particle.initialSpeedX + (centerX - particle.x) * attractionFactor;
-        particle.z += particle.initialSpeedZ;
-        particle.angle += particle.angularSpeed;
         
-        const swirlOffsetX = particle.swirlAmplitude * Math.cos(particle.angle);
-        const swirlOffsetY = particle.swirlAmplitude * Math.sin(particle.angle);
-        const drawX = particle.x + swirlOffsetX;
-        const drawY = particle.y + swirlOffsetY;
-        const distance = Math.hypot(drawX - centerX, drawY - centerY);
-        let fadeFactor = 1;
-        if (distance < fadeCircle) {
-          if (!particle.fadeStart) {
-            particle.fadeStart = timestamp;
-          }
-          fadeFactor = 1 - ((timestamp - particle.fadeStart) / fadeDuration);
-          fadeFactor = fadeFactor < 0 ? 0 : fadeFactor;
-        } else {
-          particle.fadeStart = null;
-        }
-        const heightFactor = Math.max(0, Math.min(1, 1 - Math.abs(particle.y - (canvasHeight * 0.5)) / (canvasHeight * 0.5)));
-        const scaleFactor = perspective / (perspective + particle.z);
-        const finalOpacity = particle.initialOpacity * particle.life * heightFactor * scaleFactor * fadeFactor;
-        const radius = 2 * particle.initialSize * scaleFactor;
+        // Calculate normalized gravitational acceleration toward center
+        let dx = centerX - particle.x;
+        let dy = centerY - particle.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist === 0) dist = 1;
         
-        if (!isFinite(drawX) || !isFinite(drawY) || !isFinite(radius)) {
-          continue; // skip invalid particle
+        let ax = 0, ay = 0;
+        if (dist > nearRadius) {
+          ax = gravityConst * (dx / dist);
+          ay = gravityConst * (dy / dist);
         }
         
-        if (finalOpacity !== 0 && particle.life > 0 && (particle.y > -10 && particle.z >= 0 && particle.z <= 600)) {
-          ctx.globalAlpha = finalOpacity;
-          const drawSize = radius * 2.5;
-          ctx.drawImage(canvas.particleImage, drawX - radius, drawY - radius, drawSize, drawSize);
-          ctx.globalAlpha = 1;
-          // Reset particle if it goes above canvas or fully faded
-          if (particle.y < -10 || finalOpacity === 0) {
-            newParticles.push(createParticle());
-          } else {
-            if (particle.x > canvasWidth + 10) {
-              particle.x = -10;
-            }
-            newParticles.push(particle);
-          }
+        // Update velocity, position, and apply friction
+        particle.vx = (particle.vx + ax) * friction;
+        particle.vy = (particle.vy + ay) * friction;
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        
+        // Adjust fading near center and decrease life
+        let fadeFactor = (dist < nearRadius) ? (dist / nearRadius) : 1;
+        if (dist < nearRadius) particle.life -= 0.05;
+        particle.life -= particle.lifeDecrease;
+        const finalOpacity = particle.opacity * Math.max(particle.life, 0) * fadeFactor;
+        
+        ctx.globalAlpha = finalOpacity;
+        const drawSize = particle.size;
+        ctx.drawImage(canvas.particleImage, particle.x - drawSize / 2, particle.y - drawSize / 2, drawSize, drawSize);
+        ctx.globalAlpha = 1;
+        
+        // Remove particle if failed criteria
+        if (!(particle.life > 0 && particle.x > -50 && particle.x < canvasWidth + 50 && particle.y > -50 && particle.y < canvasHeight + 50)) {
+          particlesRef.current.splice(i, 1);
         }
-        // Else: omit particle (cull it)
       }
-      particlesRef.current = newParticles;
+      
       frameRef.current = requestAnimationFrame(animate);
     };
 
@@ -307,10 +287,16 @@ function App() {
 
     animate(0);
 
-    window.addEventListener('resize', resizeCanvas);
+    let resizeTimer;
+    const debouncedResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(resizeCanvas, 100);
+    };
+    window.addEventListener('resize', debouncedResize);
 
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener('resize', debouncedResize);
+      clearTimeout(resizeTimer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       cancelAnimationFrame(frameRef.current);
     };
@@ -326,7 +312,7 @@ function App() {
       // for testing purposes, let's modify and set each device's pm2.5 value to a random 1-100 value
       // we will modify the data object directly
       // data.forEach(device => {
-      //   device.air_quality_value = Math.floor(Math.random() * 200) + 1;
+      //   device.air_quality_value = Math.floor(Math.random() * 40) + 1;
       // });
 
       handleDeviceUpdate(data);
