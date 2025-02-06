@@ -326,7 +326,7 @@ function App() {
       // for testing purposes, let's modify and set each device's pm2.5 value to a random 1-100 value
       // we will modify the data object directly
       // data.forEach(device => {
-      //   device.air_quality_value = Math.floor(Math.random() * 75) + 1;
+      //   device.air_quality_value = Math.floor(Math.random() * 200) + 1;
       // });
 
       handleDeviceUpdate(data);
