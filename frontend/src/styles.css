@@ -1,508 +1,1031 @@
 :root {
-  --bg-primary: #01020e;
-  --bg-secondary: #0b132b;
-  --text-primary: #eef2ff;
-  --text-secondary: #94a3b8;
-  --accent-blue: #0ea5e9;
-  --accent-purple: #8b5cf6;
-  --card-overlay: rgba(255, 255, 255, 0.06);
-  --glass-blur: 10px;
-  --accent-emerald: #10b981;
-  --accent-ruby: #e11d48;
-  --card-bg: rgba(10, 21, 39, 0.7);
-  --card-border: rgba(14, 165, 233, 0.15);
-  --success: #34d399;
-  --warning: #fbbf24;
-  --danger: #f43f5e;
-  --off: #475569;
+  /* Clinical color palette */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #e0f2fe;
+  --text-primary: #0c4a6e;
+  --text-secondary: #475569;
+  --accent-blue: #0284c7;
+  --accent-dark-blue: #0c4a6e; 
+  --accent-light-blue: #bae6fd;
+  --monitoring-green: #14b8a6;
+  --warning-yellow: #fbbf24;
+  --caution-orange: #f97316; 
+  --alert-red: #e11d48;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  
+  /* Status states */
+  --status-nominal: #0d9488;
+  --status-elevated: #0284c7;
+  --status-caution: #fbbf24;
+  --status-warning: #f97316;
+  --status-alert: #e11d48;
+  --status-offline: #64748b;
+  
+  /* Interface specifications */
+  --border-radius: 3px;
+  --grid-unit: 8px;
+  --card-padding: calc(var(--grid-unit) * 2);
+  --card-inner-padding: calc(var(--grid-unit) * 1);
+  --display-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1), inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-medium: 0.25s ease;
+  --transition-slow: 0.4s ease;
 }
 
+/* Base styles */
 body {
   margin: 0;
-  background: 
-    radial-gradient(circle at 0% 0%, rgba(16, 185, 129, 0.05), transparent 50%),
-    radial-gradient(circle at 100% 0%, rgba(14, 165, 233, 0.05), transparent 50%),
-    radial-gradient(circle at 50% 100%, rgba(139, 92, 246, 0.05), transparent 50%),
-    linear-gradient(to bottom right, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
+/* Dashboard & grid paper background */
 .dashboard {
-  padding: 1rem;
+  padding: calc(var(--grid-unit) * 2);
   min-height: 100vh;
-  background: 
-    radial-gradient(circle at 0% 0%, rgba(14, 165, 233, 0.03), transparent 70%),
-    radial-gradient(circle at 100% 100%, rgba(139, 92, 246, 0.03), transparent 70%);
   position: relative;
-  z-index: 1;
-  overflow: hidden;
-  animation: backgroundFlow 20s ease infinite;
+  background-size: calc(var(--grid-unit) * 10) calc(var(--grid-unit) * 10), 
+                   calc(var(--grid-unit) * 10) calc(var(--grid-unit) * 10);
+  background-image: 
+    linear-gradient(to right, rgba(12, 74, 110, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(12, 74, 110, 0.05) 1px, transparent 1px);
+  background-position: 0 0;
+  transition: background-color var(--transition-medium);
 }
 
-/* New cleanliness state styles */
-.dashboard.clean {
-  filter: brightness(1.6) saturate(1.7) contrast(1.2);
-  position: relative;
+/* Dashboard monitoring states */
+.dashboard.laboratory {
+  background-color: var(--bg-primary);
 }
 
-/* Updated cleanliness state styles */
-.dashboard.almost-clean {
-  filter: brightness(0.95) saturate(0.9) contrast(0.95) grayscale(0.1);
-  position: relative;
+.dashboard.monitoring {
+  background-color: var(--bg-secondary);
 }
 
-.dashboard.dusty {
-  filter: brightness(0.8) sepia(0.5) contrast(0.9) grayscale(0.2);
+.dashboard.caution {
+  background-color: #fff8e1;
 }
 
-@keyframes backgroundFlow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+.dashboard.alert {
+  background-color: #feecec;
 }
 
+/* System title */
 .title {
-  font-family: 'Montserrat', sans-serif; /* updated to a modern elegant font */
-  font-size: clamp(2.5rem, 6vw, 4rem);
-  margin: 1rem 0;
+  font-family: 'DM Sans', sans-serif;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  margin: calc(var(--grid-unit) * 2) 0;
   text-transform: uppercase;
   letter-spacing: 1px;
   text-align: center;
-  background-image: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent-dark-blue);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--grid-unit) * 1);
 }
 
+.title::before,
+.title::after {
+  content: "";
+  height: 2px;
+  width: calc(var(--grid-unit) * 5);
+  background-color: var(--accent-dark-blue);
+  display: inline-block;
+  opacity: 0.3;
+}
+
+/* Device grid layout */
 .devices-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
-  perspective: 1000px;
-  max-width: 1200px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: calc(var(--grid-unit) * 3);
+  max-width: 1500px;
   margin: 0 auto;
+  contain: layout;
 }
 
+/* Device cards with precise instrument-panel design */
 .device-card {
   position: relative;
-  background: rgba(10, 21, 39, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-  padding: 1.2rem;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  background-color: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--border-radius);
+  padding: var(--card-padding);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transform-style: preserve-3d;
-  transition: transform 0.4s ease, box-shadow 0.4s ease;
-  animation: fadeIn 0.5s ease-out forwards;
+  /* Only apply fadeIn animation on initial render, not during updates */
+  animation-fill-mode: backwards; /* Changed from 'both' to 'backwards' */
+  animation-duration: 0.4s;
+  animation-timing-function: ease-out;
+  animation-name: fadeIn;
   animation-delay: calc(var(--index) * 0.1s);
-  opacity: 0;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  will-change: transform, opacity, background-color, box-shadow;
+  backface-visibility: hidden; /* Prevent flickering during animations */
+  transform: translate3d(0, 0, 0); /* Force GPU acceleration */
+  opacity: 1 !important; /* Ensure opacity is always 1 after initial render */
 }
 
-/* Add rule to increase font size by 1.5x for expanded device cards */
-.device-card.expanded * {
-  font-size: 1.05em;
-}
-
-/* Increase device name font size and filter life circle dimensions in expanded mode */
-.device-card.expanded .device-name {
-  font-size: 2em; /* increased device name font size */
-}
-.device-card.expanded .filter-life {
-  width: 35px;
-  height: 35px;
-  min-width: 35px;
-}
-
-/* Increase PM2.5 font size in expanded view */
-.device-card.expanded .pm25-value {
-  font-size: 1.4rem; /* increased from 2.5rem */
+.device-card::after {
+  content: "";
+  position: absolute;
+  height: 4px;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  background-color: var(--accent-dark-blue);
+  opacity: 0.1;
+  border-radius: 0 0 2px 2px;
 }
 
 .device-card::before {
-  content: '';
+  content: "";
   position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, transparent, var(--accent-blue));
-  opacity: 0;
-  transition: opacity 0.5s ease;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 2px 2px 0 0;
+  background-color: var(--status-nominal);
+  transition: background-color var(--transition-medium);
+  z-index: 1;
 }
 
-.device-card:hover::before {
-  opacity: 0.2;
+.device-card[data-quality="1"]::before {
+  background-color: var(--status-nominal);
 }
 
-.device-card:hover {
-  transform: translateY(-8px) scale(1.01);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+.device-card[data-quality="2"]::before {
+  background-color: var(--status-elevated);
 }
 
-.device-card.updating::before {
-  content: '';
-  position: absolute;
-  inset: -20px;
-  background: radial-gradient(
-    circle at center,
-    var(--accent-blue) 0%,
-    transparent 70%
-  );
-  opacity: 0;
-  z-index: -1;
-  animation: updatePulse 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  pointer-events: none;
+.device-card[data-quality="3"]::before {
+  background-color: var(--status-caution);
 }
 
-.device-card.updating .pm25-display {
-  animation: pulseValue 0.5s ease-in-out;
+.device-card[data-quality="4"]::before {
+  background-color: var(--status-alert);
 }
 
+/* Calibration animation for updating devices */
+.device-card.updating {
+  animation: calibration 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes calibration {
+  0% { transform: translate3d(0, 0, 0); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+  10% { transform: translate3d(0, -2px, 0); box-shadow: 0 4px 8px rgba(2, 132, 199, 0.15); }
+  20% { transform: translate3d(0, 1px, 0); box-shadow: 0 2px 4px rgba(2, 132, 199, 0.1); }
+  30% { transform: translate3d(0, -1px, 0); box-shadow: 0 3px 6px rgba(2, 132, 199, 0.12); }
+  40% { transform: translate3d(0, 0.5px, 0); box-shadow: 0 2px 3px rgba(2, 132, 199, 0.08); }
+  50% { transform: translate3d(0, -0.5px, 0); box-shadow: 0 2px 5px rgba(2, 132, 199, 0.1); }
+  100% { transform: translate3d(0, 0, 0); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+}
+
+/* Enhanced updating animation for device cards */
+.device-card.updating {
+  animation: cardUpdate 1.5s ease-out;
+  will-change: box-shadow;
+  transition: box-shadow 0.2s ease-out;
+  opacity: 1 !important; /* Force opacity to prevent disappearing */
+  visibility: visible !important; /* Ensure visibility */
+  animation-fill-mode: forwards; /* Make sure it keeps its final state */
+}
+
+/* Updated fade-in animation for smoother appearance */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translate3d(0, calc(var(--grid-unit) * 1.5), 0) scale(0.98);
+  }
+  to { 
+    opacity: 1; 
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* Modified animation for updating cards to prevent flicker */
+@keyframes cardUpdate {
+  0% { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+  30% { box-shadow: 0 1px 12px rgba(2, 132, 199, 0.25); }
+  90% { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+  100% { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+}
+
+/* Device name header with technical appearance */
 .device-name {
   color: var(--text-primary);
-  font-size: 1.75rem;
+  font-size: 1rem;
   font-weight: 600;
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 calc(var(--grid-unit) * 2) 0;
+  letter-spacing: -0.01em;
+  border-bottom: 1px dashed var(--gray-300);
+  padding-bottom: calc(var(--grid-unit) * 1);
   position: relative;
-  background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: -0.5px;
-  text-shadow: 0 0 20px rgba(14, 165, 233, 0.3);
-  text-align: center; /* center device name for all views */
-}
-
-/* Remove this entire block since we already have a nice gradient text effect */
-.device-name::after {
-  display: none; /* or just remove this entire block */
-}
-
-.status-item {
-  color: var(--text-secondary);
-  margin: 1.2rem 0;
-  padding: 0.7rem 0;
   display: flex;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(59, 130, 246, 0.1);
-  transition: transform 0.3s ease;
+  align-items: center;
+  transition: color var(--transition-medium);
 }
 
-.status-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+.device-name::after {
+  content: attr(data-id);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--gray-500);
+  font-weight: 400;
+  transition: color var(--transition-medium);
+}
+
+/* Status indicators with calibrated measurements */
+.status-item {
+  color: var(--text-secondary);
+  margin: calc(var(--grid-unit) * 1) 0;
+  padding: calc(var(--grid-unit) * 1) 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--gray-200);
+  position: relative;
+  transition: color var(--transition-fast), border-color var(--transition-medium);
+}
+
+/* Add special padding to the fan-speed container item */
+.status-item:has(.fan-speed) {
+  padding-bottom: calc(var(--grid-unit) * 3);
+  margin-bottom: calc(var(--grid-unit) * 2);
+}
+
+.status-item::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -8px;
+  transform: translateY(-50%);
+  height: 4px;
+  width: 4px;
+  border-radius: 50%;
+  background-color: var(--gray-400);
+  opacity: 0;
+  transition: opacity var(--transition-medium), background-color var(--transition-fast);
+}
+
+.status-item.active::before {
+  opacity: 1;
+  background-color: var(--status-nominal);
+  box-shadow: 0 0 4px var(--status-nominal);
+  animation: statusPing 2s infinite;
+}
+
+.status-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray-600);
+  transition: color var(--transition-medium);
 }
 
 .status-value {
+  font-family: 'JetBrains Mono', monospace;
   color: var(--text-primary);
-  font-weight: 500;
-  transition: color 0.2s;
-}
-
-.status-item:hover .status-value {
-  color: var(--accent-blue);
-}
-
-.status-item:hover {
-  transform: translateX(8px);
-}
-
-.status-badge {
-  padding: 0.3rem 0.8rem;
-  border-radius: 1rem;
   font-size: 0.9rem;
   font-weight: 500;
+  letter-spacing: 0.02em;
+  position: relative;
+  transition: color var(--transition-medium), transform var(--transition-medium);
+}
+
+/* Add animation for updating values */
+.status-value.updating,
+.pm25-value.updating,
+.status-badge.updating,
+.mode-badge.updating,
+.air-quality-indicator.updating {
+  animation: valueUpdate 1.5s ease-out;
+  will-change: text-shadow;
+  transition: text-shadow 0.2s ease-out;
+}
+
+.status-value .unit {
+  color: var(--gray-500);
+  font-size: 0.7rem;
+  margin-left: 2px;
+  transition: color var(--transition-medium);
+}
+
+/* Status badges with precise indicators */
+.status-badge {
+  padding: calc(var(--grid-unit) * 0.5) calc(var(--grid-unit) * 1);
+  border-radius: 2px;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  display: inline-flex;
+  align-items: center;
+  column-gap: calc(var(--grid-unit) * 0.5);
+  transition: all var(--transition-medium);
 }
 
 .status-badge.on {
-  background: rgba(76, 175, 80, 0.2);
-  color: var(--success);
-  border: 1px solid rgba(76, 175, 80, 0.3);
-  animation: pulse 2s infinite ease-in-out;
-  box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
+  background: rgba(13, 148, 136, 0.1);
+  color: var(--status-nominal);
+  border: 1px solid rgba(13, 148, 136, 0.2);
+  position: relative;
+}
+
+.status-badge.on::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background-color: var(--status-nominal);
+  border-radius: 50%;
+  animation: statusPing 2s infinite;
+  transition: background-color var(--transition-medium);
 }
 
 .status-badge.off {
-  background: rgba(100, 116, 139, 0.2);
-  color: var(--off);
-  border: 1px solid rgba(100, 116, 139, 0.3);
+  background: rgba(100, 116, 139, 0.1);
+  color: var(--gray-500);
+  border: 1px solid rgba(100, 116, 139, 0.2);
 }
 
+@keyframes statusPing {
+  0% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.6); }
+  70% { box-shadow: 0 0 0 4px rgba(13, 148, 136, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); }
+}
+
+/* Fan speed indicators with measurement scale */
 .fan-speed {
   display: flex;
-  gap: 3px;
   align-items: flex-end;
   height: 20px;
+  gap: 3px;
+  position: relative;
+  margin-right: 16px;
+}
+
+.fan-speed::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: var(--gray-300);
+}
+
+.fan-speed::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 1px;
+  background-color: var(--gray-300);
 }
 
 .speed-bar {
   width: 6px;
-  background: var(--accent-blue);
-  border-radius: 3px;
-  opacity: 0.3;
-  transition: all 0.3s;
+  background: var(--gray-300);
+  border-radius: 1px;
+  transition: background-color 0.3s ease-out;
+  position: relative;
+  will-change: background-color;
 }
 
 .speed-bar.active {
-  opacity: 1;
+  background: var(--accent-blue);
 }
 
-.air-quality-indicator {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.3rem 0.8rem;
-  border-radius: 1rem;
-  font-weight: 500;
-  font-size: 0.9rem;
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s ease;
-  border: 1px solid transparent;
+.updating .speed-bar {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Remove these classes as they're no longer needed for PM2.5
-.air-quality-1 { ... }
-.air-quality-2 { ... }
-.air-quality-3, .air-quality-4 { ... }
-*/
+.speed-bar::after {
+  content: attr(data-level);
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  color: var(--gray-400);
+  font-family: 'JetBrains Mono', monospace;
+}
 
+/* Filter life visualization with precise percentage */
 .filter-life {
-  width: 50px;
-  height: 50px;
+  width: 100%;
   position: relative;
-  display: inline-flex;
+}
+
+.filter-life-bar {
+  width: 100%;
+  height: 8px;
+  background-color: var(--gray-200);
+  border-radius: 1px;
+  overflow: hidden;
+  box-shadow: var(--display-shadow);
+}
+
+.filter-life-fill {
+  height: 100%;
+  background: linear-gradient(to right, var(--status-nominal), var(--accent-blue));
+  width: var(--percent);
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: left;
+  will-change: width;
+}
+
+/* Add subtle highlight animation for updated values */
+@keyframes valueUpdate {
+  0% { text-shadow: 0 0 0 transparent; }
+  30% { text-shadow: 0 0 8px rgba(2, 132, 199, 0.4); }
+  90% { text-shadow: 0 0 0 transparent; }
+  100% { text-shadow: none; }
+}
+
+/* Add subtle highlight pulse for updated cards */
+@keyframes cardUpdate {
+  0% { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); opacity: 1; }
+  30% { box-shadow: 0 1px 12px rgba(2, 132, 199, 0.25); opacity: 1; }
+  90% { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); opacity: 1; }
+  100% { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); opacity: 1; }
+}
+
+/* Current PM2.5 value indicator on threshold line */
+.current-value-marker {
+  position: absolute;
+  top: 0;
+  left: var(--position);
+  width: 2px;
+  height: calc(var(--grid-unit) * 3);
+  background-color: var(--text-primary);
+  z-index: 2;
+  transform: translateX(-50%);
+  transition: left 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.current-value-marker::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--grid-unit) * 3);
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid var(--text-primary);
+}
+
+.current-value-marker::after {
+  content: attr(data-value);
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-primary);
+  color: white;
+  font-size: 0.65rem;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 2px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.updating .current-value-marker {
+  animation: markerPulse 0.8s ease-out;
+}
+
+@keyframes markerPulse {
+  0% { transform: translateX(-50%) scaleY(1); }
+  50% { transform: translateX(-50%) scaleY(1.3); }
+  100% { transform: translateX(-50%) scaleY(1); }
+}
+
+/* Mobile adjustments for the current value marker */
+@media (max-width: 768px) {
+  .current-value-marker {
+    height: calc(var(--grid-unit) * 2.5);
+  }
+  
+  .current-value-marker::before {
+    top: calc(var(--grid-unit) * 2.5);
+    border-left: 3px solid transparent;
+    border-right: 3px solid transparent;
+    border-top: 3px solid var(--text-primary);
+  }
+  
+  .current-value-marker::after {
+    font-size: 0.6rem;
+    padding: 1px 3px;
+    top: -14px;
+  }
+}
+
+/* Threshold markers for measurements */
+.threshold-marker {
+  position: absolute;
+  right: -4px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--status-warning);
+  opacity: 0.7;
+}
+
+.threshold-marker::after {
+  content: attr(data-threshold);
+  position: absolute;
+  top: -15px;
+  right: -12px;
+  font-size: 0.65rem;
+  color: var(--status-warning);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* PM2.5 Display with scientific instrument design */
+.pm25-display {
+  margin: calc(var(--grid-unit) * -2) calc(var(--grid-unit) * -2) calc(var(--grid-unit) * 2);
+  padding: var(--card-padding);
+  background: linear-gradient(to bottom, 
+    var(--gray-200), 
+    var(--gray-100)
+  );
+  border-bottom: 1px solid var(--gray-300);
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-}
-
-.filter-life-circle {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
-  background: conic-gradient(
-    var(--accent-blue) calc(var(--percent) * 1%),
-    rgba(59, 130, 246, 0.1) calc(var(--percent) * 1%)
-  );
-}
-
-.filter-life-text {
   position: relative;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #2c5282; /* darker blue that's more readable */
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+  box-shadow: var(--display-shadow);
 }
 
-.mode-badge {
-  text-transform: capitalize;
-  padding: 0.3rem 0.8rem;
-  border-radius: 1rem;
-  background: rgba(76, 158, 255, 0.1);
-  border: 1px solid rgba(76, 158, 255, 0.2);
-}
-
-@keyframes fadeIn {
-  from { 
-    opacity: 0; 
-    transform: translateY(30px) scale(0.95);
-    backdrop-filter: blur(0px);
-  }
-  to { 
-    opacity: 1; 
-    transform: translateY(0) scale(1);
-    backdrop-filter: blur(40px);
-  }
-}
-
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.02); }
-  100% { transform: scale(1); }
-}
-
-@keyframes updatePulse {
-  0% {
-    transform: scale(0.95);
-    opacity: 0;
-  }
-  30% {
-    opacity: 0.3;
-  }
-  100% {
-    transform: scale(1.1);
-    opacity: 0;
-  }
-}
-
-@keyframes pulseValue {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
-}
-
-.particles-canvas {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.pm25-display {
-  margin: -1rem -1rem 1rem -1rem;
-  padding: 1rem;
-  border-radius: 16px 16px 0 0;
-  background: linear-gradient(165deg, 
-    rgba(10, 21, 39, 0.85) 0%,
-    rgba(3, 7, 17, 0.90) 100%
-  );
-  border-bottom: 1px solid var(--card-border);
-  text-align: center;
-  transition: all 0.3s ease;
+/* PM2.5 readout with scientific appearance */
+.pm25-readout {
+  position: relative;
+  background-color: var(--gray-100);
+  padding: calc(var(--grid-unit) * 1) calc(var(--grid-unit) * 2);
+  border-radius: 2px;
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--display-shadow);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: calc(var(--grid-unit) * 1);
+  width: 60%;
+  transition: background-color var(--transition-medium), border-color var (--transition-medium);
 }
 
 .pm25-value {
-  font-size: 2.5rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 2rem;
   font-weight: 600;
-  margin-bottom: 0.25rem;
-  transition: color 0.5s ease, transform 0.5s ease;
+  margin: 0;
+  color: var(--text-primary);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+  position: relative;
+  transition: color var(--transition-medium), transform var(--transition-medium);
+  will-change: color, transform;
+}
+
+/* Add a flash animation when PM2.5 values change */
+.updating .pm25-value {
+  animation: valueFlash 0.6s ease-out;
+}
+
+@keyframes valueFlash {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.pm25-value::after {
+  content: attr(data-trend);
+  position: absolute;
+  right: -20px;
+  top: 4px;
+  font-size: 0.8rem;
+}
+
+.pm25-value.improving::after {
+  content: "▼";
+  color: var(--status-nominal);
+}
+
+.pm25-value.worsening::after {
+  content: "▲";
+  color: var(--status-alert);
+}
+
+.pm25-value.stable::after {
+  content: "■";
+  color: var(--status-elevated);
+}
+
+.pm25-unit {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  letter-spacing: 0.05em;
+  transition: color var(--transition-medium);
 }
 
 .pm25-label {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.75rem;
+  color: var (--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.1em;
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  transform: translateY(-50%);
+  transition: color var(--transition-medium);
 }
 
+/* PM2.5 threshold markers */
+.threshold-line {
+  position: absolute;
+  top: 0;
+  width: calc(100% - (var(--grid-unit) * 4));
+  height: calc(var(--grid-unit) * 4);
+  display: flex;
+  justify-content: space-between;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.threshold-line::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--grid-unit) * 2);
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: rgba(12, 74, 110, 0.1);
+}
+
+.threshold-mark {
+  width: 1px;
+  height: calc(var(--grid-unit) * 2);
+  background-color: rgba(12, 74, 110, 0.2);
+  position: relative;
+  transition: background-color var(--transition-medium);
+}
+
+.threshold-mark::after {
+  content: attr(data-value);
+  position: absolute;
+  top: calc(var(--grid-unit) * 2 + 2px);
+  left: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--gray-500);
+  transform: translateX(-50%);
+  transition: color var(--transition-medium);
+}
+
+.threshold-mark.danger {
+  background-color: var(--status-alert);
+}
+
+.threshold-mark.caution {
+  background-color: var(--status-caution);
+}
+
+.threshold-mark.safe {
+  background-color: var(--status-nominal);
+}
+
+/* Historical mini-chart */
+.mini-chart {
+  width: 100%;
+  height: calc(var(--grid-unit) * 5);
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  margin-top: calc(var(--grid-unit) * 1);
+  padding-top: calc(var(--grid-unit) * 1);
+  border-top: 1px dashed var(--gray-200);
+}
+
+.chart-bar {
+  flex: 1;
+  height: var(--height);
+  background-color: var(--accent-light-blue);
+  position: relative;
+  min-height: 2px;
+  border-radius: 1px 1px 0 0;
+  transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1), background-color var(--transition-medium);
+  will-change: height, background-color;
+}
+
+.chart-bar:hover::after {
+  content: attr(data-value);
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent-dark-blue);
+  color: white;
+  font-size: 0.65rem;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+
+.chart-bar.current {
+  background-color: var(--accent-blue);
+}
+
+.updating .chart-bar.current {
+  animation: barHighlight 0.8s ease-out;
+}
+
+@keyframes barHighlight {
+  0% { opacity: 0.7; }
+  50% { opacity: 1; transform: scaleY(1.05); }
+  100% { opacity: 1; transform: scaleY(1); }
+}
+
+.chart-axis {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: var(--gray-300);
+}
+
+.chart-axis::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: calc(var(--grid-unit) * -5);
+  height: 1px;
+  background-color: var(--gray-300);
+}
+
+/* Mode badges with technical appearance */
+.mode-badge {
+  text-transform: uppercase;
+  padding: calc(var(--grid-unit) * 0.5) calc(var(--grid-unit) * 1);
+  border-radius: 2px;
+  background: rgba(2, 132, 199, 0.1);
+  border: 1px solid rgba(2, 132, 199, 0.2);
+  font-size: 0.75rem;
+  color: var(--accent-blue);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.05em;
+  transition: all var(--transition-medium);
+}
+
+.mode-badge::before {
+  content: "MODE:";
+  font-size: 0.65rem;
+  color: var(--gray-500);
+  margin-right: 4px;
+}
+
+/* Air quality indicators with calibrated colors */
+.air-quality-indicator {
+  display: inline-flex;
+  align-items: center;
+  padding: calc(var(--grid-unit) * 0.5) calc(var(--grid-unit) * 1);
+  border-radius: 2px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.05em;
+  transition: all var(--transition-medium);
+  will-change: color, background, border-color;
+}
+
+.updating .air-quality-indicator {
+  animation: pulseIndicator 1s ease-out;
+}
+
+@keyframes pulseIndicator {
+  0% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Loading state with scientific calibration appearance */
 .loading {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: linear-gradient(to bottom right, var(--bg-secondary), var(--bg-primary));
+  background-color: var(--bg-primary);
+  background-image: 
+    linear-gradient(to right, rgba(12, 74, 110, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(12, 74, 110, 0.05) 1px, transparent 1px);
+  background-size: calc(var(--grid-unit) * 10) calc(var(--grid-unit) * 10);
 }
 
-.splash {
-  position: fixed;
-  inset: 0;
-  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-primary));
+.loading-text {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent-dark-blue);
+  margin-top: calc(var(--grid-unit) * 2);
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  z-index: 10;
-  animation: fadeOut 1s forwards;
 }
 
-.spinner {
-  border: 8px solid rgba(255, 255, 255, 0.1);
-  border-top: 8px solid var(--accent-purple);
-  border-radius: 50%;
-  width: 100px;
-  height: 100px;
-  animation: spin 1s linear infinite;
+.loading-status {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  margin-top: calc(var(--grid-unit) * 1);
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.calibrating {
+  width: 200px;
+  height: 4px;
+  background-color: var(--gray-200);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: calc(var(--grid-unit) * 2);
+}
+
+.calibrating::after {
+  content: "";
+  display: block;
+  width: 50px;
+  height: 100%;
+  background-color: var(--accent-blue);
+  border-radius: 2px;
+  animation: calibrate 1.5s infinite;
+}
+
+@keyframes calibrate {
+  0% { transform: translateX(-50px); }
+  100% { transform: translateX(200px); }
+}
+
+/* Added technical grid overlay */
+.grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
 }
 
 /* Mobile-specific styles */
 @media (max-width: 768px) {
+  :root {
+    --grid-unit: 4px;
+    --card-padding: calc(var(--grid-unit) * 3);
+  }
+
   .dashboard {
-    padding: 0.25rem;
+    padding: calc(var(--grid-unit) * 2);
   }
 
   .title {
     font-size: 1rem;
-    margin: 0.25rem 0;
+    margin: calc(var(--grid-unit) * 2) 0;
+  }
+
+  .title::before,
+  .title::after {
+    width: calc(var(--grid-unit) * 3);
   }
 
   .devices-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.25rem;
+    gap: calc(var(--grid-unit) * 2);
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
   }
 
   .device-card {
-    padding: 0.4rem;
-    border-radius: 8px;
-    font-size: 0.65rem;
-    backdrop-filter: blur(20px);
-    margin: 0 1rem; /* added left and right margin */
-  }
-
-  .device-card .device-name {
-    font-size: 0.75rem;
-    margin: 0 0 0.25rem 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .status-item {
-    margin: 0.2rem 0;
-    padding: 0.2rem 0;
-    gap: 0.25rem;
-    border-bottom-width: 0.5px;
-  }
-
-  .status-badge, .mode-badge {
-    padding: 0.1rem 0.3rem;
-    font-size: 0.65rem;
-    white-space: nowrap;
-  }
-
-  .air-quality-indicator {
-    padding: 0.1rem 0.3rem;
-    font-size: 0.65rem;
-    white-space: nowrap;
-  }
-
-  .fan-speed {
-    height: 12px;
-    gap: 2px;
-  }
-
-  .speed-bar {
-    width: 3px;
-  }
-
-  .filter-life {
-    width: 1.2rem;
-    height: 1.2rem;
-    min-width: 1.2rem;
-  }
-
-  .filter-life-text {
-    font-size: 0.6rem;
-  }
-
-  /* Remove hover effects on mobile */
-  .device-card:hover {
-    transform: none;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-  }
-
-  .status-item:hover {
-    transform: none;
+    padding: calc(var(--grid-unit) * 2);
+    font-size: 0.8rem;
+    transform: scale(0.98);
   }
 
   .pm25-display {
-    /* Updated: removed negative top margin for mobile */
-    margin: -0.4rem -0.4rem 0.4rem -0.4rem;
-    padding: 0.4rem;
-    border-radius: 8px 8px 0 0;
+    margin: calc(var(--grid-unit) * -2) calc(var(--grid-unit) * -2) calc(var(--grid-unit) * 1);
+    padding: calc(var(--grid-unit) * 2);
+  }
+
+  .pm25-readout {
+    padding: calc(var(--grid-unit) * 0.5) calc(var(--grid-unit) * 1);
+    margin-bottom: calc(var(--grid-unit) * 0.5);
   }
 
   .pm25-value {
     font-size: 1.2rem;
-    margin-bottom: 0.1rem;
   }
 
+  .device-name {
+    font-size: 0.8rem;
+    padding-bottom: calc(var(--grid-unit) * 0.5);
+    margin-bottom: calc(var(--grid-unit) * 0.5);
+  }
+
+  .device-name::after {
+    font-size: 0.65rem;
+  }
+
+  .status-item {
+    margin: calc(var(--grid-unit) * 0.5) 0;
+    padding: calc(var(--grid-unit) * 0.5) 0;
+  }
+  
+  /* Add special padding for fan-speed in mobile view */
+  .status-item:has(.fan-speed) {
+    padding-bottom: calc(var(--grid-unit) * 2.5);
+    margin-bottom: calc(var(--grid-unit) * 1.5);
+  }
+
+  .status-label {
+    font-size: 0.65rem;
+  }
+
+  .status-badge, .mode-badge, .air-quality-indicator {
+    padding: calc(var(--grid-unit) * 0.25) calc(var(--grid-unit) * 0.75);
+    font-size: 0.65rem;
+  }
+
+  .status-value {
+    font-size: 0.75rem;
+  }
+
+  .pm25-unit,
   .pm25-label {
     font-size: 0.6rem;
-    letter-spacing: 0.5px;
+  }
+
+  .mini-chart {
+    height: calc(var(--grid-unit) * 3);
+    margin-top: calc(var(--grid-unit) * 0.5);
+    padding-top: calc(var(--grid-unit) * 0.5);
+  }
+
+  .fan-speed {
+    height: 16px;
+  }
+  
+  /* Adjust the position of level numbers in mobile view */
+  .speed-bar::after {
+    bottom: -14px;
+    font-size: 0.55rem;
+  }
+  
+  .filter-life-bar {
+    height: 6px;
+  }
+  
+  .filter-life-text {
+    top: -16px;
+    font-size: 0.65rem;
+  }
+  
+  .threshold-mark::after {
+    font-size: 0.55rem;
+  }
+  
+  .threshold-line {
+    height: calc(var(--grid-unit) * 3);
+  }
+}
+
+/* Additional responsive sizing for very small screens */
+@media (max-width: 375px) {
+  .devices-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .device-card {
+    transform: scale(1);
+    padding: calc(var(--grid-unit) * 1.5);
+  }
+  
+  .pm25-value {
+    font-size: 1.1rem;
   }
 }

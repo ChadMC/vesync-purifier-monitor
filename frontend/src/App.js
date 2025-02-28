@@ -2,445 +2,549 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
 import './styles.css';
 
-// Add this function at the top, before the App component
+// Helper functions
 function getPM25Color(value) {
-  const colors = [
-    { point: 0, color: [14, 165, 233] },    // Blue (#0ea5e9)
-    { point: 40, color: [52, 211, 153] },   // Green (#34d399)
-    { point: 85, color: [251, 191, 36] },   // Orange (#fbbf24)
-    { point: 120, color: [244, 63, 94] }    // Red (#f43f5e)
-  ];
+  if (value <= 12) return '#0d9488'; // Nominal - Green
+  if (value <= 35.4) return '#0284c7'; // Moderate - Blue
+  if (value <= 55.4) return '#fbbf24'; // Caution - Yellow
+  if (value <= 150.4) return '#f97316'; // Warning - Orange
+  return '#e11d48'; // Alert - Red
+}
 
-  // Find the two colors to interpolate between
-  let lower = colors[0];
-  let upper = colors[colors.length - 1];
+function getAirQualityLabel(level) {
+  const labels = ['Excellent', 'Good', 'Fair', 'Poor'];
+  return labels[level - 1] || 'Unknown';
+}
+
+function getStatusLevel(pm25Value) {
+  if (pm25Value <= 12) return 'laboratory';
+  if (pm25Value <= 35.4) return 'monitoring';
+  if (pm25Value <= 55.4) return 'caution';
+  return 'alert';
+}
+
+// React memo component to prevent unnecessary re-renders of device cards
+const DeviceCard = React.memo(({ 
+  device, 
+  index, 
+  isUpdating, 
+  deviceId,
+  history,
+  getTrend
+}) => {
+  const pm25Value = device.air_quality_value || 0;
+  const trend = getTrend(deviceId);
   
-  for (let i = 0; i < colors.length - 1; i++) {
-    if (value >= colors[i].point && value < colors[i + 1].point) {
-      lower = colors[i];
-      upper = colors[i + 1];
-      break;
-    }
-  }
+  // Track which values are updating
+  const updatingValues = device._updatingFields || [];
+  
+  return (
+    <div 
+      key={device.name} 
+      className={`device-card ${isUpdating ? 'updating' : ''}`}
+      data-quality={device.air_quality || 1}
+      style={{"--index": index}}
+    >
+      {/* Remove the fadeIn animation classname when updating */}
+      <div className="pm25-display">
+        <div className="threshold-line">
+          <div className="threshold-mark safe" data-value="0" />
+          <div className="threshold-mark" data-value="12" />
+          <div className="threshold-mark" data-value="35" />
+          <div className="threshold-mark caution" data-value="55" />
+          <div className="threshold-mark danger" data-value="150+" />
+          {/* Add current value marker */}
+          <div 
+            className="current-value-marker" 
+            style={{
+              "--position": `${Math.min(100, (pm25Value / 150) * 100)}%`,
+              "backgroundColor": getPM25Color(pm25Value)
+            }}
+            data-value={pm25Value.toFixed(1)}
+          />
+        </div>
+        <div className="pm25-readout">
+          <span className="pm25-label">PM2.5</span>
+          <span 
+            className={`pm25-value ${trend} ${updatingValues.includes('air_quality_value') ? 'updating' : ''}`}
+            style={{ color: getPM25Color(pm25Value) }}
+          >
+            {pm25Value.toFixed(1)}
+          </span>
+          <span className="pm25-unit">µg/m³</span>
+        </div>
+        <MiniChart deviceId={deviceId} currentValue={pm25Value} history={history} />
+      </div>
+      
+      <h3 className="device-name" data-id={`ID:${(10000 + index).toString()}`}>
+        {device.name}
+      </h3>
+      
+      <div className={`status-item ${device.is_on ? 'active' : ''}`}>
+        <span className="status-label">Operation</span>
+        <span className={`status-badge ${device.is_on ? 'on' : 'off'} ${updatingValues.includes('is_on') ? 'updating' : ''}`}>
+          {device.is_on ? 'Active' : 'Standby'}
+        </span>
+      </div>
+      
+      <div className="status-item">
+        <span className="status-label">Mode</span>
+        <span className={`mode-badge ${updatingValues.includes('mode') ? 'updating' : ''}`}>
+          {device.mode || 'N/A'}
+        </span>
+      </div>
+      
+      <div className="status-item">
+        <span className="status-label">Fan Speed</span>
+        <div className={`fan-speed ${updatingValues.includes('fan_speed') ? 'updating' : ''}`}>
+          {[1, 2, 3, 4].map(level => (
+            <div
+              key={level}
+              className={`speed-bar ${level <= device.fan_speed ? 'active' : ''}`}
+              style={{ height: `${level * 4}px` }}
+              data-level={level}
+            />
+          ))}
+        </div>
+      </div>
+      
+      <div className="status-item">
+        <span className="status-label">Air Quality</span>
+        <span 
+          className={`air-quality-indicator ${updatingValues.includes('air_quality') ? 'updating' : ''}`}
+          style={{
+            color: getPM25Color(pm25Value),
+            background: `${getPM25Color(pm25Value)}10`,
+            border: `1px solid ${getPM25Color(pm25Value)}30`
+          }}
+        >
+          {getAirQualityLabel(device.air_quality)}
+        </span>
+      </div>
+      
+      <div className="status-item">
+        <span className="status-label">Filter Life</span>
+        <div className={`filter-life ${updatingValues.includes('filter_life') ? 'updating' : ''}`}>
+          <div className="filter-life-text">
+            {device.filter_life || 0}
+          </div>
+          <div className="filter-life-bar">
+            <div 
+              className="filter-life-fill" 
+              style={{"--percent": `${device.filter_life || 0}%`}}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  // Improve the comparison to prevent unnecessary rerenders
+  // Only update when actual visible data has changed or animation state changes
+  return prevProps.isUpdating === nextProps.isUpdating &&
+         prevProps.device.name === nextProps.device.name &&
+         prevProps.device.is_on === nextProps.device.is_on &&
+         prevProps.device.mode === nextProps.device.mode &&
+         prevProps.device.fan_speed === nextProps.device.fan_speed &&
+         prevProps.device.air_quality === nextProps.device.air_quality &&
+         prevProps.device.air_quality_value === nextProps.device.air_quality_value &&
+         prevProps.device.filter_life === nextProps.device.filter_life &&
+         prevProps.history === nextProps.history;
+});
 
-  // Calculate the percentage between the two points
-  const range = upper.point - lower.point;
-  const percent = range ? Math.min(1, (value - lower.point) / range) : 1;
-
-  // Interpolate between the two colors
-  const r = Math.round(lower.color[0] + (upper.color[0] - lower.color[0]) * percent);
-  const g = Math.round(lower.color[1] + (upper.color[1] - lower.color[1]) * percent);
-  const b = Math.round(lower.color[2] + (upper.color[2] - lower.color[2]) * percent);
-
-  return `rgb(${r}, ${g}, ${b})`;
-}
-
-// Add this function next to getPM25Color function
-function getAirQualityColor(level) {
-  switch (level) {
-    case 1: return '#0ea5e9'; // Blue - Excellent
-    case 2: return '#34d399'; // Green - Good
-    case 3: return '#fbbf24'; // Orange - Fair
-    case 4: return '#f43f5e'; // Red - Poor
-    default: return '#94a3b8'; // Gray - N/A
-  }
-}
+// Mini chart component for historical PM2.5 data
+const MiniChart = React.memo(({ deviceId, currentValue, history }) => {
+  const chartData = history || [];
+  if (!chartData.length) return null;
+  
+  // Find max value for scaling
+  const maxValue = Math.max(...chartData, currentValue);
+  
+  return (
+    <div className="mini-chart">
+      {chartData.map((value, index) => (
+        <div 
+          key={index}
+          className={`chart-bar ${index === chartData.length - 1 ? 'current' : ''}`}
+          style={{ '--height': `${(value / maxValue) * 100}%` }}
+          data-value={value}
+        />
+      ))}
+    </div>
+  );
+});
 
 function App() {
   const [devices, setDevices] = useState([]);
   const [updatingDevices, setUpdatingDevices] = useState(new Set());
   const [isLoaded, setIsLoaded] = useState(false);
   const animatingDevicesRef = useRef(new Set());
-  const updateTimeoutsRef = useRef([]);
-  // Add new ref to store current PM2.5 value
-  const currentPM25Ref = useRef(0);
-  const targetPM25Ref = useRef(1); // new ref for smooth interpolation
-  const canvasRef = useRef(null);
-  const particlesRef = useRef([]);
-  const frameRef = useRef();
-  const particleSystemRef = useRef({
-    targetCount: 50,
-    spawnRate: 2,
-    lastSpawn: 0
-  });
+  const updateTimeoutsRef = useRef({});
+  const [deviceHistory, setDeviceHistory] = useState({});
+  const socketRef = useRef(null);
   const previousDevicesRef = useRef([]);
+  const deviceKeysRef = useRef({}); // Store stable keys for devices
+  const initialRenderRef = useRef(true);
 
-  // Update the memoized handler to use ref for comparison
+  // Generate mock history data for visualization
+  const generateMockHistory = useCallback((deviceId, currentValue) => {
+    const historyPoints = 8;
+    const variance = Math.max(2, currentValue * 0.2); // 20% variance
+    
+    return Array.from({ length: historyPoints }, (_, i) => {
+      // Generate a value that tends toward the current value
+      const timeWeight = i / historyPoints;
+      const randomVariance = (Math.random() - 0.5) * variance;
+      const baseValue = currentValue - randomVariance;
+      
+      // Make each value in a reasonable range +/- variance
+      return Math.max(1, Math.round(baseValue + randomVariance));
+    });
+  }, []);
+
+  // PM2.5 trend direction
+  const getTrend = useCallback((deviceId) => {
+    const history = deviceHistory[deviceId];
+    if (!history || history.length < 2) return 'stable';
+    
+    const current = history[history.length - 1];
+    const previous = history[history.length - 2];
+    
+    if (current < previous) return 'improving';
+    if (current > previous) return 'worsening';
+    return 'stable';
+  }, [deviceHistory]);
+
+  // Handle device updates
   const handleDeviceUpdate = useCallback((newDevices) => {
+    if (!newDevices || newDevices.length === 0) return;
+    
     const changedDevices = new Set();
     const prevDevices = previousDevicesRef.current;
+    const newHistory = {...deviceHistory};
     
+    // Initialize keys if this is the first update
+    if (initialRenderRef.current) {
+      newDevices.forEach((_, idx) => {
+        deviceKeysRef.current[idx] = `device-${Date.now()}-${idx}`;
+      });
+      initialRenderRef.current = false;
+    }
+    
+    // Process each device individually
     newDevices.forEach((newDev, idx) => {
+      const deviceId = `device-${idx}`;
       const oldDev = prevDevices[idx];
+      
+      // Ensure we preserve the existing key to prevent unmounting
+      if (oldDev && oldDev.name) {
+        newDev.name = oldDev.name;
+      } else if (!deviceKeysRef.current[idx]) {
+        deviceKeysRef.current[idx] = `device-${Date.now()}-${idx}`;
+        newDev.name = deviceKeysRef.current[idx];
+      }
+      
+      // Check if device has changed
       if (oldDev) {
-        const hasChanged = [
+        const fieldsToCheck = [
           'is_on',
           'mode',
           'fan_speed',
           'air_quality',
           'air_quality_value',
           'filter_life'
-        ].some(prop => oldDev[prop] !== newDev[prop]);
-
-        if (hasChanged && !animatingDevicesRef.current.has(idx)) {
-          changedDevices.add(idx);
-          animatingDevicesRef.current.add(idx);
+        ];
+        
+        // Track which fields have changed
+        const updatedFields = fieldsToCheck.filter(prop => oldDev[prop] !== newDev[prop]);
+        
+        // Add list of updated fields to the device for UI animation
+        if (updatedFields.length > 0) {
+          newDev._updatingFields = updatedFields;
           
-          if (updateTimeoutsRef.current[idx]) {
-            clearTimeout(updateTimeoutsRef.current[idx]);
+          if (!animatingDevicesRef.current.has(idx)) {
+            changedDevices.add(idx);
+            animatingDevicesRef.current.add(idx);
+            
+            // Clear any existing timeouts for this device
+            if (updateTimeoutsRef.current[idx]) {
+              clearTimeout(updateTimeoutsRef.current[idx]);
+            }
+            if (updateTimeoutsRef.current[`fields-${idx}`]) {
+              clearTimeout(updateTimeoutsRef.current[`fields-${idx}`]);
+            }
+            
+            // First, set a timeout to clear the _updatingFields after the animation completes
+            updateTimeoutsRef.current[`fields-${idx}`] = setTimeout(() => {
+              // Clear the updating fields first (animation on specific fields)
+              setDevices(currentDevices => {
+                return currentDevices.map((currentDev, deviceIdx) => {
+                  if (deviceIdx !== idx) return currentDev;
+                  // Preserve key to prevent remounting
+                  return { ...currentDev, _updatingFields: [] };
+                });
+              });
+            }, 1500);
+            
+            // Then, set a slightly delayed timeout to remove the device from updating state
+            updateTimeoutsRef.current[idx] = setTimeout(() => {
+              animatingDevicesRef.current.delete(idx);
+              setUpdatingDevices(prev => {
+                const next = new Set([...prev]);
+                next.delete(idx);
+                return next;
+              });
+            }, 1600);
           }
-          
-          updateTimeoutsRef.current[idx] = setTimeout(() => {
-            animatingDevicesRef.current.delete(idx);
-            setUpdatingDevices(prev => {
-              const next = new Set(prev);
-              next.delete(idx);
-              return next;
-            });
-          }, 1500);
+        } else {
+          // Keep previous updating fields if they exist to avoid interrupting animations
+          newDev._updatingFields = oldDev._updatingFields || [];
         }
+
+        // Update history if pm2.5 value changed
+        if (oldDev.air_quality_value !== newDev.air_quality_value) {
+          if (!newHistory[deviceId]) {
+            // First time seeing this device, generate mock history
+            newHistory[deviceId] = generateMockHistory(deviceId, newDev.air_quality_value);
+          } else {
+            // Add new value and remove oldest
+            newHistory[deviceId] = [
+              ...newHistory[deviceId].slice(1), 
+              newDev.air_quality_value
+            ];
+          }
+        }
+      } else {
+        // New device, initialize history
+        newHistory[deviceId] = generateMockHistory(deviceId, newDev.air_quality_value || 1);
+        newDev._updatingFields = []; // No highlighting for new devices
       }
+    });
+
+    // Update devices state while preserving identity
+    setDevices(currentDevices => {
+      // If there are no devices currently, simply return the new ones
+      if (currentDevices.length === 0) {
+        return newDevices;
+      }
+      
+      // If count different, rebuild array but preserve keys
+      if (currentDevices.length !== newDevices.length) {
+        return newDevices;
+      }
+      
+      // If no changes, return current array unchanged
+      if (changedDevices.size === 0) {
+        return currentDevices;
+      }
+      
+      // Update only changed devices, preserve others
+      return currentDevices.map((currentDev, idx) => {
+        if (!changedDevices.has(idx)) {
+          return currentDev;
+        }
+        // Update device but preserve key and any ongoing animations
+        return {
+          ...newDevices[idx]
+        };
+      });
     });
 
     if (changedDevices.size > 0) {
       setUpdatingDevices(prev => new Set([...prev, ...changedDevices]));
     }
     
-    previousDevicesRef.current = newDevices;
-    setDevices(newDevices);
-    if (!isLoaded) {
-      setTimeout(() => setIsLoaded(true), 500); // slight delay for splash fade
+    // Update device history if needed
+    if (Object.keys(newHistory).length > 0) {
+      setDeviceHistory(prevHistory => {
+        // Check if anything actually changed
+        let changed = false;
+        for (const key in newHistory) {
+          if (!prevHistory[key] || JSON.stringify(prevHistory[key]) !== JSON.stringify(newHistory[key])) {
+            changed = true;
+            break;
+          }
+        }
+        return changed ? newHistory : prevHistory;
+      });
     }
-  }, [isLoaded]); // Can keep empty deps since we use refs
+    
+    // Keep a deep copy of the current devices for the next comparison
+    previousDevicesRef.current = JSON.parse(JSON.stringify(newDevices));
+    
+    if (!isLoaded) {
+      setTimeout(() => setIsLoaded(true), 500);
+    }
+  }, [deviceHistory, isLoaded, generateMockHistory]);
 
+  // Store the device update handler in a ref to avoid dependency cycles
+  const handleDeviceUpdateRef = useRef(handleDeviceUpdate);
+  
+  // Update the ref when the callback changes
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    // Detect if mobile
-    const isMobile = window.innerWidth < 768;
-    let animationFrameId;
-    const perspective = 800; // new constant for 3D perspective
+    handleDeviceUpdateRef.current = handleDeviceUpdate;
+  }, [handleDeviceUpdate]);
 
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      // Create or update the cached particle image whenever canvas resizes
-      const particleCanvas = document.createElement('canvas');
-      const particleCtx = particleCanvas.getContext('2d');
-      const particleSize = 64; // cached image fixed size
-      particleCanvas.width = particleSize;
-      particleCanvas.height = particleSize;
-      const grad = particleCtx.createRadialGradient(
-        particleSize / 2, particleSize / 2, 0,
-        particleSize / 2, particleSize / 2, particleSize / 2
-      );
-      grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-      grad.addColorStop(0.4, 'rgba(255, 255, 255, 0.8)');
-      grad.addColorStop(0.7, 'rgba(14, 165, 233, 0.3)');
-      grad.addColorStop(1, 'rgba(14, 165, 233, 0)');
-      particleCtx.fillStyle = grad;
-      particleCtx.fillRect(0, 0, particleSize, particleSize);
-      // Store in ref for use in animate
-      canvas.particleImage = particleCanvas;
-    };
-
-    // Removed initial burst functions: createInitialParticle and createInitialBurst
-
-    // Replace createParticle function with a realistic physics version
-    const createParticle = () => {
-      const canvasWidth = canvasRef.current.width;
-      const canvasHeight = canvasRef.current.height;
-      // Spawn particle from one of four edges uniformly
-      const edge = Math.floor(Math.random() * 4);
-      let x, y;
-      switch (edge) {
-        case 0: // top
-          x = Math.random() * canvasWidth;
-          y = -10;
-          break;
-        case 1: // right
-          x = canvasWidth + 10;
-          y = Math.random() * canvasHeight;
-          break;
-        case 2: // bottom
-          x = Math.random() * canvasWidth;
-          y = canvasHeight + 10;
-          break;
-        case 3: // left
-          x = -10;
-          y = Math.random() * canvasHeight;
-          break;
-      }
-      return {
-        x,
-        y,
-        vx: (Math.random() - 0.5) * 1.0,
-        vy: (Math.random() - 0.5) * 1.0,
-        opacity: 0.5 + Math.random() * 0.5, // base opacity between 0.5 and 1
-        life: 1.0,
-        lifeDecrease: 0.001 + Math.random() * 0.002,
-        size: 2 + Math.random() * 3 // particle size between 2 and 5
-      };
-    };
-
-    // Replace updateParticleSystem function with the following:
-    const updateParticleSystem = () => {
-      // Use target PM2.5 value (which is updated from socket) to adjust spawn rate radically.
-      // For example, for pm25=1 spawnRate=5, for pm25=100 spawnRate ~500.
-      const pmVal = targetPM25Ref.current;
-      const minRate = 10;
-      const maxRate = 500;
-      // Use a quadratic scaling
-      const newSpawnRate = Math.min(maxRate, minRate * Math.pow(pmVal, 2));
-      particleSystemRef.current.spawnRate = newSpawnRate;
-      // Adjust target count as well, e.g. factor of 6.
-      particleSystemRef.current.targetCount = newSpawnRate * 6;
-    };
-
-    // In the animate function, replace the physics with a single gravitational acceleration
-    const animate = (timestamp) => {
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      const canvasWidth = canvas.width;
-      const canvasHeight = canvas.height;
-
-      // Updated gravitational constant: toned down by 25%
-      const gravityConst = 0.0375;
-      const friction = 0.99;
-      const nearRadius = 40; // new threshold to disable extra acceleration near center
-
-      // Smoothly update currentPM25 toward targetPM25 (if still needed for spawning rate)
-      currentPM25Ref.current += (targetPM25Ref.current - currentPM25Ref.current) * 0.02;
-      
-      // Update particle system parameters based on current PM2.5 value
-      updateParticleSystem();
-      
-      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-      
-      // Particle spawning using the dynamically computed spawnRate
-      const spawnInterval = 1000 / particleSystemRef.current.spawnRate;
-      while (
-        timestamp - particleSystemRef.current.lastSpawn > spawnInterval &&
-        particlesRef.current.length < particleSystemRef.current.targetCount
-      ) {
-        particlesRef.current.push(createParticle());
-        particleSystemRef.current.lastSpawn += spawnInterval;
-      }
-      
-      // Replace filtering with a reverse for-loop to update particles in-place
-      for (let i = particlesRef.current.length - 1; i >= 0; i--) {
-        const particle = particlesRef.current[i];
-        
-        // Calculate normalized gravitational acceleration toward center
-        let dx = centerX - particle.x;
-        let dy = centerY - particle.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist === 0) dist = 1;
-        
-        let ax = 0, ay = 0;
-        if (dist > nearRadius) {
-          ax = gravityConst * (dx / dist);
-          ay = gravityConst * (dy / dist);
-        }
-        
-        // Update velocity, position, and apply friction
-        particle.vx = (particle.vx + ax) * friction;
-        particle.vy = (particle.vy + ay) * friction;
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-        
-        // Adjust fading near center and decrease life
-        let fadeFactor = (dist < nearRadius) ? (dist / nearRadius) : 1;
-        if (dist < nearRadius) particle.life -= 0.05;
-        particle.life -= particle.lifeDecrease;
-        const finalOpacity = particle.opacity * Math.max(particle.life, 0) * fadeFactor;
-        
-        ctx.globalAlpha = finalOpacity;
-        const drawSize = particle.size;
-        ctx.drawImage(canvas.particleImage, particle.x - drawSize / 2, particle.y - drawSize / 2, drawSize, drawSize);
-        ctx.globalAlpha = 1;
-        
-        // Remove particle if failed criteria
-        if (!(particle.life > 0 && particle.x > -50 && particle.x < canvasWidth + 50 && particle.y > -50 && particle.y < canvasHeight + 50)) {
-          particlesRef.current.splice(i, 1);
-        }
-      }
-      
-      frameRef.current = requestAnimationFrame(animate);
-    };
-
-    resizeCanvas();
-    updateParticleSystem();
-
-    // Add listener to handle tab visibility changes
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        cancelAnimationFrame(frameRef.current);
-      } else {
-        // Reset lastSpawn to prevent a burst of particles on resume
-        particleSystemRef.current.lastSpawn = performance.now();
-        frameRef.current = requestAnimationFrame(animate);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    animate(0);
-
-    let resizeTimer;
-    const debouncedResize = () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(resizeCanvas, 100);
-    };
-    window.addEventListener('resize', debouncedResize);
-
-    return () => {
-      window.removeEventListener('resize', debouncedResize);
-      clearTimeout(resizeTimer);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      cancelAnimationFrame(frameRef.current);
-    };
-  }, [devices]);
-
-  // Socket connection setup - remove devices dependency
-  useEffect(() => {
+  // Track if socket has been initialized
+  const socketInitializedRef = useRef(false);
+  
+  // Function to manage socket connection - with fewer dependencies
+  const connectSocket = useCallback(() => {
+    // Return existing socket if it exists and is connected
+    if (socketRef.current?.connected) return socketRef.current;
+    
+    // If already initialized but disconnected, don't log again
+    if (!socketInitializedRef.current) {
+      console.log('Connecting to WebSocket...');
+      socketInitializedRef.current = true;
+    }
+    
     const socket = io(`http://${window.location.hostname}:5000`, {
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
     });
     
+    socketRef.current = socket;
+    
+    // Use the ref for the handler to avoid dependency issues
     socket.on('devices_update', data => {
-      // for testing purposes, let's modify and set each device's pm2.5 value to a random 1-100 value
-      // we will modify the data object directly
-      // data.forEach(device => {
-      //   device.air_quality_value = Math.floor(Math.random() * 30) + 1;
-      // });
-
-      handleDeviceUpdate(data);
-      // Update target PM2.5 rather than current directly
-      targetPM25Ref.current = Math.max(1, ...data.map(d => d.air_quality_value || 0));
+      handleDeviceUpdateRef.current(data);
     });
     
-    return () => socket.disconnect();
-  }, [handleDeviceUpdate]); // Only depend on the memoized handler
+    return socket;
+  }, []); // No dependencies needed
+  
+  const disconnectSocket = useCallback(() => {
+    if (socketRef.current) {
+      console.log('Disconnecting WebSocket...');
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+  }, []);
 
-  // Cleanup timeouts on unmount
+  // Ref to store the disconnect timeout
+  const disconnectTimeoutRef = useRef(null);
+
+  // Handle visibility change with delayed disconnect - with fewer dependencies
+  const handleVisibilityChange = useCallback(() => {
+    if (document.visibilityState === 'hidden') {
+      // Set a 1-minute timeout before disconnecting
+      disconnectTimeoutRef.current = setTimeout(() => {
+        if (socketRef.current) disconnectSocket();
+      }, 60000); // 60 seconds = 1 minute
+    } else {
+      // User has returned to the tab
+      // Clear any pending disconnect timeout
+      if (disconnectTimeoutRef.current) {
+        clearTimeout(disconnectTimeoutRef.current);
+        disconnectTimeoutRef.current = null;
+      }
+      
+      // If socket was disconnected, reconnect
+      if (!socketRef.current || !socketRef.current.connected) {
+        connectSocket();
+      }
+    }
+  }, []); // No dependencies needed as we use refs
+  
+  // Keep reference to the visibility handler
+  const handleVisibilityChangeRef = useRef(handleVisibilityChange);
+  
+  // Update the ref when the callback changes
+  useEffect(() => {
+    handleVisibilityChangeRef.current = handleVisibilityChange;
+  }, [handleVisibilityChange]);
+
+  // Socket connection setup with visibility management - simplified
+  useEffect(() => {
+    // Initial connection once
+    connectSocket();
+    
+    // Wrapper function to use the current ref value
+    const visibilityHandler = () => handleVisibilityChangeRef.current();
+    
+    // Add visibility change listener
+    document.addEventListener('visibilitychange', visibilityHandler);
+    
+    return () => {
+      // Clean up on unmount
+      document.removeEventListener('visibilitychange', visibilityHandler);
+      
+      // Clear any pending disconnect timeout
+      if (disconnectTimeoutRef.current) {
+        clearTimeout(disconnectTimeoutRef.current);
+        disconnectTimeoutRef.current = null;
+      }
+      
+      disconnectSocket();
+    };
+  }, []); // Empty dependency array so it only runs once
+
+  // Clean up timeouts on unmount
   useEffect(() => {
     return () => {
-      updateTimeoutsRef.current.forEach(timeout => {
+      Object.keys(updateTimeoutsRef.current).forEach(key => {
+        const timeout = updateTimeoutsRef.current[key];
         if (timeout) clearTimeout(timeout);
       });
     };
   }, []);
 
-  // Compute cleanliness class based on max PM2.5 value
-  const cleanlinessClass = React.useMemo(() => {
-    const maxPM25 = devices.reduce((max, d) => Math.max(max, d.air_quality_value || 0), 0);
-    if (maxPM25 > 50) return 'dusty';
-    if (maxPM25 > 20) return 'almost-clean';
-    return 'clean';
-  }, [devices]);
+  // Grid overlay component
+  const GridOverlay = () => {
+    return (
+      <div className="grid-overlay">
+        {/* Grid lines are handled by CSS */}
+      </div>
+    );
+  };
 
-  // Compute grid style and whether to use expanded view on mobile
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  const isExpanded = isMobile && devices.length <= 3;
-  const gridStyle = isExpanded ? { gridTemplateColumns: '1fr' } : {};
+  // Determine dashboard monitoring state
+  const monitoringState = React.useMemo(() => {
+    const maxPM25 = devices.reduce((max, d) => Math.max(max, d.air_quality_value || 0), 0);
+    return getStatusLevel(maxPM25);
+  }, [devices]);
 
   return (
     <>
       {!isLoaded && (
-        <div className="splash">
-          <div className="spinner"></div>
+        <div className="loading">
+          <div className="loading-text">
+            INITIALIZING AIR QUALITY MONITORING SYSTEM
+            <span className="loading-status">Calibrating sensors...</span>
+          </div>
+          <div className="calibrating" />
         </div>
       )}
-      <div className={`dashboard ${cleanlinessClass}`}>
-        <canvas 
-          ref={canvasRef} 
-          className="particles-canvas"
-        />
-        <h1 className="title">Levoit Air Purifier Insights</h1>
+      <div className={`dashboard ${monitoringState}`}>
+        <GridOverlay />
+        <h1 className="title">Air Quality Monitoring System</h1>
         {devices.length === 0 ? (
           <div className="loading">
-            <div className="spinner"></div>
-            <p style={{ textAlign: 'center', marginTop: '1rem', color: '#eef2ff' }}>
-              No devices found. Searching...
-            </p>
+            <div className="loading-text">
+              SYSTEM INITIALIZATION
+              <span className="loading-status">Searching for connected devices...</span>
+            </div>
+            <div className="calibrating" />
           </div>
         ) : (
-          <div className="devices-grid" style={gridStyle}>
-            {devices.map((dev, idx) => (
-              <div 
-                key={idx} 
-                className={`device-card ${updatingDevices.has(idx) ? 'updating' : ''} ${isExpanded ? 'expanded' : ''}`}
-                style={{"--index": idx}}
-              >
-                <div 
-                  className="pm25-display"
-                  style={{
-                    background: `linear-gradient(165deg, 
-                      ${getPM25Color(dev.air_quality_value || 0)}15,
-                      ${getPM25Color(dev.air_quality_value || 0)}05
-                    )`,
-                    borderBottom: `1px solid ${getPM25Color(dev.air_quality_value || 0)}30`
-                  }}
-                >
-                  <div 
-                    className="pm25-value"
-                    style={{ color: getPM25Color(dev.air_quality_value || 0) }}
-                  >
-                    {dev.air_quality_value || 'N/A'}
-                  </div>
-                  <div className="pm25-label">PM2.5</div>
-                </div>
-                <h3 className="device-name">{dev.name}</h3>
-                <div className="status-item">
-                  <span>Status</span>
-                  <span className={`status-badge ${dev.is_on ? 'on' : 'off'}`}>
-                    {dev.is_on ? 'On' : 'Off'}
-                  </span>
-                </div>
-                <div className="status-item">
-                  <span>Mode</span>
-                  <span className="mode-badge">{dev.mode || 'N/A'}</span>
-                </div>
-                <div className="status-item">
-                  <span>Fan Speed</span>
-                  <div className="fan-speed">
-                    {[1, 2, 3, 4].map(level => (
-                      <div
-                        key={level}
-                        className={`speed-bar ${level <= dev.fan_speed ? 'active' : ''}`}
-                        style={{ height: `${level * 5}px` }}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div className="status-item">
-                  <span>Air Quality</span>
-                  <span 
-                    className="air-quality-indicator"
-                    style={{
-                      color: getAirQualityColor(dev.air_quality),
-                      background: `${getAirQualityColor(dev.air_quality)}15`,
-                      borderColor: `${getAirQualityColor(dev.air_quality)}30`
-                    }}
-                  >
-                    {['Excellent', 'Good', 'Fair', 'Poor'][dev.air_quality - 1] || 'N/A'}
-                  </span>
-                </div>
-                <div className="status-item">
-                  <span>Filter Life</span>
-                  <div className="filter-life">
-                    <div 
-                      className="filter-life-circle" 
-                      style={{"--percent": dev.filter_life || 0}}
-                    />
-                    <span className="filter-life-text">
-                      {dev.filter_life ? `${dev.filter_life}%` : 'N/A'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="devices-grid">
+            {devices.map((dev, idx) => {
+              const deviceId = `device-${idx}`;
+              return (
+                <DeviceCard
+                  key={dev.name}
+                  device={dev}
+                  index={idx}
+                  isUpdating={updatingDevices.has(idx)}
+                  deviceId={deviceId}
+                  history={deviceHistory[deviceId]}
+                  getTrend={getTrend}
+                />
+              );
+            })}
           </div>
         )}
       </div>
